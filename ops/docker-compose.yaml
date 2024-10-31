@@ -23,7 +23,7 @@ services:
       - "7474:7474"
       - "7687:7687"
     environment:
-      - NEO4J_AUTH=${GRAPH_DB_USER}/${GRAPH_DB_PASSWORD}
+      - NEO4J_AUTH=${GRAPH_DB_USER:-neo4j}/${GRAPH_DB_PASSWORD:-KGdkfCHtVumyMN}
     volumes:
       - neo4j-data-miner:/data
       - neo4j-logs-miner:/logs

@@ -1,5 +1,5 @@
 from loguru import logger
-from actors import run_actor, run_actor_async, ActorConfig
+from .actors import run_actor_async, ActorConfig
 from datetime import datetime, timezone
 import asyncio
 import json
@@ -7,14 +7,29 @@ import json
 class ApiDojoTweetScraper:
     """
     A class designed to query tweets using the apidojo/tweet-scraper actor on the Apify platform.
+    This version includes Region as a separate entity and captures edges between entities.
     """
 
-    def __init__(self):
+    def __init__(self, tokens):
         """
-        Initialize the ApiDojoTweetScraper with actor configuration.
+        Initialize the ApiDojoTweetScraper with a list of tokens to monitor.
         """
+        self.tokens = tokens
         self.actor_config = ActorConfig("61RPP7dywgiy0JPD0")
         self.actor_config.timeout_secs = 120
+
+    async def search_token_mentions(self):
+        """
+        Run the actor for each token in self.tokens to retrieve tweet data.
+        """
+        all_data = []
+        for token in self.tokens:
+            url = f"https://twitter.com/search?q=%24{token}"
+            logger.info(f"Scraping data for token: ${token}")
+            results = await self.searchBatch(url)
+            mapped_data = self.map(results, token)
+            all_data.extend(mapped_data)
+        return all_data
 
     async def searchBatch(self, url: str):
         """
@@ -40,16 +55,8 @@ class ApiDojoTweetScraper:
                 "groups": ["RESIDENTIAL"]
             }
         }
-        # Run the actor with the configured input
         results = await run_actor_async(self.actor_config, run_input)
         return results
-
-    def searchByUrl(self, url: str):
-        """
-        Perform a search using the specified URL and map the results.
-        """
-        results = asyncio.run(self.searchBatch(url))
-        return self.map(results)
 
     def format_date(self, date: datetime):
         """
@@ -58,14 +65,15 @@ class ApiDojoTweetScraper:
         date = date.replace(tzinfo=timezone.utc)
         return date.isoformat(sep=' ', timespec='seconds')
 
-    def map_item(self, item) -> dict:
+    def map_item(self, item, token) -> dict:
         """
-        Map the raw tweet data to a structured dictionary format.
+        Map the raw tweet data to a structured dictionary format with Region as a separate entity and edges.
         """
         try:
             hashtags = ["#" + x["text"] for x in item.get("entities", {}).get('hashtags', [])]
             images = []
 
+            # Handling media items
             extended_entities = item.get("extendedEntities")
             if extended_entities:
                 media_urls = {m["media_key"]: m["media_url_https"] for m in extended_entities["media"] if m.get("media_url_https")}
@@ -74,36 +82,78 @@ class ApiDojoTweetScraper:
                     if media_key:
                         images.append(media_urls[media_key])
 
+            # Parsing and formatting the date
             date_format = "%a %b %d %H:%M:%S %z %Y"
             parsed_date = datetime.strptime(item["createdAt"], date_format)
 
-            return {
+            # Structuring entities
+            tweet = {
                 'id': item['id'],
                 'url': item['twitterUrl'],
                 'text': item.get('text'),
                 'likes': item['likeCount'],
                 'images': images,
-                'username': item['author']['userName'],
-                'hashtags': hashtags,
                 'timestamp': self.format_date(parsed_date)
             }
-        except Exception as e:
-            logger.error(f"❌ Error while converting tweet to sn3 model: {e}, tweet = {item}")
 
-    def map(self, input: list) -> list:
+            user_account = {
+                'username': item['author']['userName'],
+                'user_id': item['author']['id'],
+                'is_verified': item['author']['isVerified']
+            }
+
+            region = {
+                'name': item['author'].get('location', 'Unknown')  # Default to 'Unknown' if no location
+            }
+
+            # Define edges and relationships between entities
+            edges = [
+                {
+                    'type': 'POSTED',
+                    'from': user_account['user_id'],
+                    'to': tweet['id'],
+                    'attributes': {
+                        'timestamp': tweet['timestamp'],
+                        'likes': tweet['likes']
+                    }
+                },
+                {
+                    'type': 'MENTIONS',
+                    'from': user_account['user_id'],
+                    'to': token,
+                    'attributes': {
+                        'timestamp': tweet['timestamp'],
+                        'hashtag_count': len(hashtags)
+                    }
+                }
+            ]
+
+            return {
+                'token': token,
+                'tweet': tweet,
+                'user_account': user_account,
+                'region': region,
+                'hashtags': hashtags,
+                'edges': edges
+            }
+        except Exception as e:
+            logger.error(f"❌ Error while converting tweet to structured format: {e}, tweet = {item}")
+            return {}
+
+    def map(self, input: list, token: str) -> list:
         """
-        Map the input data to the expected sn3 format.
+        Map the input data to the structured format for ingestion.
         """
-        filtered_input = []
+        structured_data = []
         for item in input:
-            sn3_item = self.map_item(item)
-            if sn3_item:
-                filtered_input.append(sn3_item)
-        return filtered_input
+            structured_item = self.map_item(item, token)
+            if structured_item:
+                structured_data.append(structured_item)
+        return structured_data
 
     def export_to_json(self, data: list, filename: str):
         """
-        Export the mapped data to a JSON file.
+        Export the structured data to a JSON file.
         """
         try:
             with open(filename, 'w') as f:
@@ -113,33 +163,18 @@ class ApiDojoTweetScraper:
             logger.error(f"❌ Error exporting data to JSON: {e}")
 
 if __name__ == '__main__':
+    # Tokens to monitor
+    tokens = ["PEPE"]
+
     # Initialize the tweet query mechanism
-    query = ApiDojoTweetScraper()
+    scraper = ApiDojoTweetScraper(tokens)
 
-    # Example URL to search
-    url = "https://twitter.com/search?q=%24PEPE"
+    # Search tweets for each token and collect the structured data
+    data_set = asyncio.run(scraper.search_token_mentions())
 
-    # Search tweets using the specified URL
-    data_set = query.searchByUrl(url=url)
-
-    # Display verification results
-    verified_urls = [tweet['url'] for tweet in data_set]
-    print(f"Verification returned {len(verified_urls)} tweets")
-
-    if data_set:
-        print(f"First tweet: {data_set[0]}")
-    print(f"There are {len(set(verified_urls))} unique URLs")
+    # Display results for verification
+    for data in data_set[:5]:  # Displaying first 5 entries for brevity
+        print(data)
 
     # Export results to JSON
-    query.export_to_json(data_set, "tweets_data.json")
-
-    # Handle unverified URLs
-    unverified = set([url]) - set(verified_urls)
-    if len(unverified) > 0:
-        print(f"Num unverified: {len(unverified)}: {unverified}, trying again")
-        data_set2 = query.searchByUrl(url=url)
-        verified_urls2 = [tweet['url'] for tweet in data_set2]
-        unverified = set([url]) - set(verified_urls) - set(verified_urls2)
-        print(f"Num unverified: {len(unverified)}: {unverified}")
-    else:
-        print("All verified!")
+    scraper.export_to_json(data_set, "tweets_data.json")
