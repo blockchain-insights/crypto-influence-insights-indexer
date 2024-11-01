@@ -18,6 +18,7 @@ async def main():
     try:
         # Scrape tweets for each token and collect the structured data
         scraped_data = await tweet_scraper.search_token_mentions()
+        tweet_scraper.export_to_json(scraped_data, "tweets.json")
         if not scraped_data:
             logger.warning("No data scraped; exiting.")
             return

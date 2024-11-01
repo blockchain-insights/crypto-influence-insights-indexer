@@ -5,23 +5,12 @@ import asyncio
 import json
 
 class ApiDojoTweetScraper:
-    """
-    A class designed to query tweets using the apidojo/tweet-scraper actor on the Apify platform.
-    This version includes Region as a separate entity and captures edges between entities.
-    """
-
     def __init__(self, tokens):
-        """
-        Initialize the ApiDojoTweetScraper with a list of tokens to monitor.
-        """
         self.tokens = tokens
         self.actor_config = ActorConfig("61RPP7dywgiy0JPD0")
         self.actor_config.timeout_secs = 120
 
     async def search_token_mentions(self):
-        """
-        Run the actor for each token in self.tokens to retrieve tweet data.
-        """
         all_data = []
         for token in self.tokens:
             url = f"https://twitter.com/search?q=%24{token}"
@@ -32,9 +21,6 @@ class ApiDojoTweetScraper:
         return all_data
 
     async def searchBatch(self, url: str):
-        """
-        Run the actor with a dynamic URL for the search query.
-        """
         run_input = {
             "includeSearchTerms": False,
             "maxItems": 1000,
@@ -50,30 +36,29 @@ class ApiDojoTweetScraper:
             "start": "2021-07-01",
             "startUrls": [url],
             "tweetLanguage": "en",
-            "proxyConfiguration": {
-                "useApifyProxy": True,
-                "groups": ["RESIDENTIAL"]
-            }
+            "proxyConfiguration": {"useApifyProxy": True, "groups": ["RESIDENTIAL"]}
         }
         results = await run_actor_async(self.actor_config, run_input)
         return results
 
-    def format_date(self, date: datetime):
+    def format_date(self, date_str: str):
         """
-        Format the date to ISO format with UTC timezone.
+        Format the date from Twitter's createdAt format to ISO format with UTC timezone.
         """
-        date = date.replace(tzinfo=timezone.utc)
-        return date.isoformat(sep=' ', timespec='seconds')
+        try:
+            parsed_date = datetime.strptime(date_str, "%a %b %d %H:%M:%S %z %Y")
+            return parsed_date.astimezone(timezone.utc).isoformat(sep=' ', timespec='seconds')
+        except ValueError as e:
+            logger.error(f"Error parsing date '{date_str}': {e}")
+            return None
 
     def map_item(self, item, token) -> dict:
         """
-        Map the raw tweet data to a structured dictionary format with Region as a separate entity and edges.
+        Map a raw tweet data item to a structured dictionary format.
         """
         try:
             hashtags = ["#" + x["text"] for x in item.get("entities", {}).get('hashtags', [])]
             images = []
-
-            # Handling media items
             extended_entities = item.get("extendedEntities")
             if extended_entities:
                 media_urls = {m["media_key"]: m["media_url_https"] for m in extended_entities["media"] if m.get("media_url_https")}
@@ -82,50 +67,37 @@ class ApiDojoTweetScraper:
                     if media_key:
                         images.append(media_urls[media_key])
 
-            # Parsing and formatting the date
-            date_format = "%a %b %d %H:%M:%S %z %Y"
-            parsed_date = datetime.strptime(item["createdAt"], date_format)
+            # Parse the tweet's creation date
+            tweet_timestamp = self.format_date(item.get("createdAt", ""))
 
-            # Structuring entities
             tweet = {
                 'id': item['id'],
                 'url': item['twitterUrl'],
                 'text': item.get('text'),
                 'likes': item['likeCount'],
                 'images': images,
-                'timestamp': self.format_date(parsed_date)
+                'timestamp': tweet_timestamp
             }
 
             user_account = {
                 'username': item['author']['userName'],
                 'user_id': item['author']['id'],
-                'is_verified': item['author']['isVerified']
+                'is_verified': item['author']['isVerified'],
+                'follower_count': item['author'].get('followers', 0),
+                'account_age': self.format_date(item['author'].get('createdAt', "")),
+                'engagement_level': item.get('likeCount', 0) + item.get('retweetCount', 0)
             }
 
             region = {
-                'name': item['author'].get('location', 'Unknown')  # Default to 'Unknown' if no location
+                'name': item['author'].get('location', 'Unknown')
             }
 
             # Define edges and relationships between entities
             edges = [
-                {
-                    'type': 'POSTED',
-                    'from': user_account['user_id'],
-                    'to': tweet['id'],
-                    'attributes': {
-                        'timestamp': tweet['timestamp'],
-                        'likes': tweet['likes']
-                    }
-                },
-                {
-                    'type': 'MENTIONS',
-                    'from': user_account['user_id'],
-                    'to': token,
-                    'attributes': {
-                        'timestamp': tweet['timestamp'],
-                        'hashtag_count': len(hashtags)
-                    }
-                }
+                {'type': 'POSTED', 'from': user_account['user_id'], 'to': tweet['id'], 'attributes': {'timestamp': tweet['timestamp'], 'likes': tweet['likes']}},
+                {'type': 'MENTIONS', 'from': user_account['user_id'], 'to': token, 'attributes': {'timestamp': tweet['timestamp'], 'hashtag_count': len(hashtags)}},
+                {'type': 'LOCATED_IN', 'from': user_account['user_id'], 'to': region['name']},
+                {'type': 'MENTIONED_IN', 'from': token, 'to': tweet['id']}
             ]
 
             return {
@@ -142,7 +114,7 @@ class ApiDojoTweetScraper:
 
     def map(self, input: list, token: str) -> list:
         """
-        Map the input data to the structured format for ingestion.
+        Convert all tweet items in input to structured data format for the given token.
         """
         structured_data = []
         for item in input:
@@ -153,7 +125,7 @@ class ApiDojoTweetScraper:
 
     def export_to_json(self, data: list, filename: str):
         """
-        Export the structured data to a JSON file.
+        Export the mapped data to a JSON file.
         """
         try:
             with open(filename, 'w') as f:
@@ -162,6 +134,7 @@ class ApiDojoTweetScraper:
         except Exception as e:
             logger.error(f"❌ Error exporting data to JSON: {e}")
 
+# Ensure graph_indexer is only closed if instantiated
 if __name__ == '__main__':
     # Tokens to monitor
     tokens = ["PEPE"]
@@ -169,12 +142,19 @@ if __name__ == '__main__':
     # Initialize the tweet query mechanism
     scraper = ApiDojoTweetScraper(tokens)
 
-    # Search tweets for each token and collect the structured data
-    data_set = asyncio.run(scraper.search_token_mentions())
+    try:
+        # Search tweets for each token and collect the structured data
+        data_set = asyncio.run(scraper.search_token_mentions())
 
-    # Display results for verification
-    for data in data_set[:5]:  # Displaying first 5 entries for brevity
-        print(data)
+        # Display results for verification
+        if data_set:
+            for data in data_set[:5]:  # Displaying first 5 entries for brevity
+                print(data)
 
-    # Export results to JSON
-    scraper.export_to_json(data_set, "tweets_data.json")
+            # Export results to JSON
+            scraper.export_to_json(data_set, "tweets.json")
+        else:
+            logger.warning("No data scraped; exiting.")
+
+    except Exception as e:
+        logger.error(f"An error occurred during scraping: {e}")
