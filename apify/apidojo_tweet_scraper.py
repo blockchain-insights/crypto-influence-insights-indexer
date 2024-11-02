@@ -1,3 +1,4 @@
+import os
 from loguru import logger
 from .actors import run_actor_async, ActorConfig
 from datetime import datetime, timezone
@@ -5,22 +6,27 @@ import asyncio
 import json
 
 class ApiDojoTweetScraper:
-    def __init__(self, tokens):
+    def __init__(self, tokens, start_date=None, end_date=None):
         self.tokens = tokens
         self.actor_config = ActorConfig("61RPP7dywgiy0JPD0")
         self.actor_config.timeout_secs = 120
+
+        # Set the start and end dates from environment variables if not provided
+        self.start_date = start_date or os.getenv("SCRAPE_START_DATE", "2021-07-01")
+        self.end_date = end_date or os.getenv("SCRAPE_END_DATE")  # Now allows for None
 
     async def search_token_mentions(self):
         all_data = []
         for token in self.tokens:
             url = f"https://twitter.com/search?q=%24{token}"
-            logger.info(f"Scraping data for token: ${token}")
+            logger.info(f"Scraping data for token: ${token} from {self.start_date} to {self.end_date or 'now'}")
             results = await self.searchBatch(url)
             mapped_data = self.map(results, token)
             all_data.extend(mapped_data)
         return all_data
 
     async def searchBatch(self, url: str):
+        # Set up input for run_actor_async; only include 'end' if it's defined
         run_input = {
             "includeSearchTerms": False,
             "maxItems": 1000,
@@ -33,11 +39,14 @@ class ApiDojoTweetScraper:
             "onlyVerifiedUsers": False,
             "onlyVideo": False,
             "sort": "Latest",
-            "start": "2021-07-01",
+            "start": self.start_date,
             "startUrls": [url],
             "tweetLanguage": "en",
             "proxyConfiguration": {"useApifyProxy": True, "groups": ["RESIDENTIAL"]}
         }
+        if self.end_date:  # Add end date only if defined
+            run_input["end"] = self.end_date
+
         results = await run_actor_async(self.actor_config, run_input)
         return results
 
@@ -134,13 +143,15 @@ class ApiDojoTweetScraper:
         except Exception as e:
             logger.error(f"❌ Error exporting data to JSON: {e}")
 
-# Ensure graph_indexer is only closed if instantiated
 if __name__ == '__main__':
     # Tokens to monitor
     tokens = ["PEPE"]
 
-    # Initialize the tweet query mechanism
-    scraper = ApiDojoTweetScraper(tokens)
+    # Initialize the tweet query mechanism with start and end dates from environment variables
+    start_date = os.getenv("SCRAPE_START_DATE")
+    end_date = os.getenv("SCRAPE_END_DATE")
+
+    scraper = ApiDojoTweetScraper(tokens, start_date=start_date, end_date=end_date)
 
     try:
         # Search tweets for each token and collect the structured data
