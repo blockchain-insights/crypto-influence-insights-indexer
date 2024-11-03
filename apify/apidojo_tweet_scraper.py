@@ -15,6 +15,12 @@ class ApiDojoTweetScraper:
         self.start_date = start_date or os.getenv("SCRAPE_START_DATE", "2021-07-01")
         self.end_date = end_date or os.getenv("SCRAPE_END_DATE")  # Now allows for None
 
+        # Configurable parameters with environment variable overrides
+        self.max_items = int(os.getenv("MAX_ITEMS", 1000))
+        self.min_favorites = int(os.getenv("MIN_FAVORITES", 5))
+        self.min_replies = int(os.getenv("MIN_REPLIES", 5))
+        self.min_retweets = int(os.getenv("MIN_RETWEETS", 5))
+
     async def search_token_mentions(self):
         all_data = []
         for token in self.tokens:
@@ -29,10 +35,10 @@ class ApiDojoTweetScraper:
         # Set up input for run_actor_async; only include 'end' if it's defined
         run_input = {
             "includeSearchTerms": False,
-            "maxItems": 1000,
-            "minimumFavorites": 5,
-            "minimumReplies": 5,
-            "minimumRetweets": 5,
+            "maxItems": self.max_items,
+            "minimumFavorites": self.min_favorites,
+            "minimumReplies": self.min_replies,
+            "minimumRetweets": self.min_retweets,
             "onlyImage": False,
             "onlyQuote": False,
             "onlyTwitterBlue": False,
