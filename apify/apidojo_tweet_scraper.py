@@ -6,8 +6,8 @@ import asyncio
 import json
 
 class ApiDojoTweetScraper:
-    def __init__(self, tokens, start_date=None, end_date=None):
-        self.tokens = tokens
+    def __init__(self, token, start_date=None, end_date=None):
+        self.token = token
         self.actor_config = ActorConfig("61RPP7dywgiy0JPD0")
         self.actor_config.timeout_secs = 120
 
@@ -22,14 +22,10 @@ class ApiDojoTweetScraper:
         self.min_retweets = int(os.getenv("MIN_RETWEETS", 5))
 
     async def search_token_mentions(self):
-        all_data = []
-        for token in self.tokens:
-            url = f"https://twitter.com/search?q=%24{token}"
-            logger.info(f"Scraping data for token: ${token} from {self.start_date} to {self.end_date or 'now'}")
-            results = await self.searchBatch(url)
-            mapped_data = self.map(results, token)
-            all_data.extend(mapped_data)
-        return all_data
+        url = f"https://twitter.com/search?q=%24{self.token}"
+        logger.info(f"Scraping data for token: ${self.token} from {self.start_date} to {self.end_date or 'now'}")
+        results = await self.searchBatch(url)
+        return self.map(results)
 
     async def searchBatch(self, url: str):
         # Set up input for run_actor_async; only include 'end' if it's defined
@@ -67,7 +63,7 @@ class ApiDojoTweetScraper:
             logger.error(f"Error parsing date '{date_str}': {e}")
             return None
 
-    def map_item(self, item, token) -> dict:
+    def map_item(self, item) -> dict:
         """
         Map a raw tweet data item to a structured dictionary format.
         """
@@ -110,13 +106,13 @@ class ApiDojoTweetScraper:
             # Define edges and relationships between entities
             edges = [
                 {'type': 'POSTED', 'from': user_account['user_id'], 'to': tweet['id'], 'attributes': {'timestamp': tweet['timestamp'], 'likes': tweet['likes']}},
-                {'type': 'MENTIONS', 'from': user_account['user_id'], 'to': token, 'attributes': {'timestamp': tweet['timestamp'], 'hashtag_count': len(hashtags)}},
+                {'type': 'MENTIONS', 'from': user_account['user_id'], 'to': self.token, 'attributes': {'timestamp': tweet['timestamp'], 'hashtag_count': len(hashtags)}},
                 {'type': 'LOCATED_IN', 'from': user_account['user_id'], 'to': region['name']},
-                {'type': 'MENTIONED_IN', 'from': token, 'to': tweet['id']}
+                {'type': 'MENTIONED_IN', 'from': self.token, 'to': tweet['id']}
             ]
 
             return {
-                'token': token,
+                'token': self.token,
                 'tweet': tweet,
                 'user_account': user_account,
                 'region': region,
@@ -127,13 +123,13 @@ class ApiDojoTweetScraper:
             logger.error(f"❌ Error while converting tweet to structured format: {e}, tweet = {item}")
             return {}
 
-    def map(self, input: list, token: str) -> list:
+    def map(self, input: list) -> list:
         """
         Convert all tweet items in input to structured data format for the given token.
         """
         structured_data = []
         for item in input:
-            structured_item = self.map_item(item, token)
+            structured_item = self.map_item(item)
             if structured_item:
                 structured_data.append(structured_item)
         return structured_data
@@ -150,17 +146,17 @@ class ApiDojoTweetScraper:
             logger.error(f"❌ Error exporting data to JSON: {e}")
 
 if __name__ == '__main__':
-    # Tokens to monitor
-    tokens = ["PEPE"]
+    # Token to monitor
+    token = "PEPE"
 
     # Initialize the tweet query mechanism with start and end dates from environment variables
     start_date = os.getenv("SCRAPE_START_DATE")
     end_date = os.getenv("SCRAPE_END_DATE")
 
-    scraper = ApiDojoTweetScraper(tokens, start_date=start_date, end_date=end_date)
+    scraper = ApiDojoTweetScraper(token, start_date=start_date, end_date=end_date)
 
     try:
-        # Search tweets for each token and collect the structured data
+        # Search tweets for the token and collect the structured data
         data_set = asyncio.run(scraper.search_token_mentions())
 
         # Display results for verification
