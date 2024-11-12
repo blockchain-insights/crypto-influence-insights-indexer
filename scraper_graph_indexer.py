@@ -5,7 +5,7 @@ from loguru import logger
 class ScraperGraphIndexer:
     def __init__(self, graph_db_url: str = None, graph_db_user: str = None, graph_db_password: str = None):
         self.graph_db_url = graph_db_url or os.environ.get("GRAPH_DB_URL", "bolt://localhost:7687")
-        self.graph_db_user = graph_db_user or os.environ.get("GRAPH_DB_USER", "neo4j")
+        self.graph_db_user = graph_db_user or os.environ.get("GRAPH_DB_USER", "ops/neo4j")
         self.graph_db_password = graph_db_password or os.environ.get("GRAPH_DB_PASSWORD", "password")
         self.driver = GraphDatabase.driver(self.graph_db_url, auth=(self.graph_db_user, self.graph_db_password))
 
