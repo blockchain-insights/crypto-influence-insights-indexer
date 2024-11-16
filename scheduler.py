@@ -1,5 +1,4 @@
 import os
-
 from celery import Celery
 from celery.schedules import crontab
 from dotenv import load_dotenv
@@ -20,21 +19,33 @@ logger.add(
     level="DEBUG"
 )
 
+# Get the schedule interval from an environment variable or default to 7 minutes
+INDEXER_INTERVAL_MINUTES = int(os.getenv('INDEXER_INTERVAL_MINUTES', 7))
+
 # Celery application instance
 scheduler_app = Celery('tasks', broker=os.getenv('REDIS_URL', 'redis://localhost:6379/0'))
 
-# Beat schedule for periodic tasks
-from celery.schedules import crontab, timedelta
+# Import tasks to register them with Celery
+from twitter_token_indexer import run_index_tweets
 
+# Beat schedule for periodic tasks
 scheduler_app.conf.beat_schedule = {
-    'task-index_tweets': {
-        'task': 'tasks.index_tweets',
-        'schedule': timedelta(minutes=15),  # Run every 15 minutes
-        'options': {'immediate': True},  # Start immediately after the Docker container is loaded
-        'args': []
+    'run-indexer-every-x-minutes': {
+        'task': 'twitter_token_indexer.run_index_tweets',
+        'schedule': crontab(minute=f'*/{INDEXER_INTERVAL_MINUTES}'),
+        'options': {'immediate': True},
     },
 }
 
 scheduler_app.conf.timezone = 'UTC'
 scheduler_app.conf.broker_connection_retry_on_startup = True
 scheduler_app.conf.worker_proc_alive_timeout = 60
+
+# Trigger immediate execution if specified in the environment variable
+if os.getenv('TRIGGER_IMMEDIATE', 'false').lower() == 'true':
+    logger.info("Triggering immediate execution of `run_index_tweets` task.")
+    scheduler_app.send_task('twitter_token_indexer.run_index_tweets')
+
+# Allow manual execution outside Docker
+if __name__ == '__main__':
+    scheduler_app.start(['worker', '-B', '--loglevel=info'])

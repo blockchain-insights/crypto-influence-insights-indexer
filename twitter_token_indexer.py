@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-@shared_task(name="tasks.index_tweets")
+@shared_task
 def run_index_tweets():
     """Run the asynchronous tweet indexing task."""
     asyncio.run(index_tweets())

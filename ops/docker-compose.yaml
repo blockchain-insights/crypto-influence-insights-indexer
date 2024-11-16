@@ -33,6 +33,8 @@ services:
       - MAX_ITEMS=1200
       - SCRAPE_TOKEN=PEPE
       - REDIS_URL=redis://redis:6379/0
+      - INDEXER_INTERVAL_MINUTES=10
+      - TRIGGER_IMMEDIATE=true
     restart: unless-stopped
     volumes:
       - ./logs:/logs
