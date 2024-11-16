@@ -2,21 +2,6 @@ version: '3.8'
 
 services:
 
-  memgraph:
-    image: memgraph/memgraph-mage:1.18-memgraph-2.18
-    ports:
-      - "7687:7687"
-      - "7444:7444"
-    environment:
-      - MEMGRAPH_USER=${GRAPH_DB_USER}
-      - MEMGRAPH_PASSWORD=${GRAPH_DB_PASSWORD}
-    command: ["--storage-parallel-schema-recovery=true", "--storage-recovery-thread-count=60", "--storage-gc-cycle-sec=300", "--log-level=TRACE", "--also-log-to-stderr", "--storage-snapshot-on-exit=false", "--storage-snapshot-interval-sec=14400", "--storage-snapshot-retention-count=2", "--storage-wal-enabled=true", "--isolation-level=READ_COMMITTED", "--replication-restore-state-on-startup=true", "--query-execution-timeout-sec=0"]
-    volumes:
-      - bitcoin-memgraph-data:/var/lib/memgraph
-      - bitcoin-memgraph-log:/var/log/memgraph
-      - bitcoin-memgraph-etc:/etc/memgraph
-    restart: unless-stopped
-
   neo4j:
     image: neo4j:latest
     ports:
@@ -27,29 +12,49 @@ services:
       - NEO4JLABS_PLUGINS=["graph-data-science"]  # Enable GDS plugin
       - NEO4J_dbms_security_procedures_unrestricted=gds.*
     volumes:
-      - neo4j-data-miner:/data
-      - neo4j-logs-miner:/logs
+      - neo4j-data:/data
+      - neo4j-logs:/logs
       - ./ops/neo4j/plugins:/plugins  # Mount the directory with the GDS JAR
 
-  memgraph-lab:
-    image: memgraph/lab:latest
-    container_name: memgraph-lab
-    ports:
-      - "3000:3000"
+  scheduler:
+    build:
+      context: ../
+      dockerfile: Dockerfile
+    command: ["celery", "-A", "scheduler", "worker", "--beat", "-E", "--loglevel=info"]
     depends_on:
-      - memgraph
+      - redis
+      - neo4j
     environment:
-      - QUICK_CONNECT_MG_HOST=memgraph
-      - QUICK_CONNECT_MG_PORT=7687
+      - APIFY_API_KEY=apify_api_eZrqixGZNbC3k4h9xlKTMsym7eCqHZ0F6rN5
+      - GRAPH_DB_URL=bolt://neo4j:7687
+      - GRAPH_DB_USER=neo4j
+      - GRAPH_DB_PASSWORD=KGdkfCHtVumyMN
+      - SCRAPE_START_DATE=2024-07-01
+      - MAX_ITEMS=1200
+      - SCRAPE_TOKEN=PEPE
+      - REDIS_URL=redis://redis:6379/0
+    restart: unless-stopped
+    volumes:
+      - ./logs:/logs
+
+  scheduler-ui:
+    image: mher/flower:latest
+    ports:
+      - "5555:5555"
+    command: ["celery", "flower", "--broker=redis://redis:6379/0"]
+    depends_on:
+      - redis
+      - scheduler
+    restart: unless-stopped
+
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
 
 volumes:
-  bitcoin-memgraph-data:
-    name: bitcoin-memgraph-data
-  bitcoin-memgraph-log:
-    name: bitcoin-memgraph-log
-  bitcoin-memgraph-etc:
-    name: bitcoin-memgraph-etc
-  neo4j-data-miner:
-    name: neo4j-data-miner
-  neo4j-logs-miner:
-    name: neo4j-logs-miner
+  neo4j-data:
+    name: neo4j-data
+  neo4j-logs:
+    name: neo4j-logs

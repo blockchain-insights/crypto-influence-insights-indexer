@@ -1,38 +1,42 @@
 import os
 import asyncio
-from apify.apidojo_tweet_scraper import ApiDojoTweetScraper  # Ensure this is the correct path to ApiDojoTweetScraper
-from scraper_graph_indexer import ScraperGraphIndexer  # Ensure this is the correct path to ScraperGraphIndexer
+from celery import shared_task
+from apify.apidojo_tweet_scraper import ApiDojoTweetScraper  # Ensure this is the correct path
+from scraper_graph_indexer import ScraperGraphIndexer  # Ensure this is the correct path
 from loguru import logger
 from dotenv import load_dotenv
 
 load_dotenv()
 
-# Define the indexing function
-async def index_tweets(token):
-    # Initialize the tweet scraper with provided token
+@shared_task(name="tasks.index_tweets")
+def run_index_tweets():
+    """Run the asynchronous tweet indexing task."""
+    asyncio.run(index_tweets())
+
+async def index_tweets(token=None):
+    """Indexes tweets for a given token."""
+    token = token or os.getenv("SCRAPE_TOKEN", "PEPE")
     tweet_scraper = ApiDojoTweetScraper(token)
-    graph_indexer = None  # Initialize to None to handle exceptions gracefully
+    graph_indexer = None
 
     try:
-        # Scrape tweets for the token and collect structured data
+        # Scrape tweets
+        logger.info(f"Scraping tweets for token: {token}")
         scraped_data = await tweet_scraper.search_token_mentions()
         tweet_scraper.export_to_json(scraped_data, "tweets.json")
         if not scraped_data:
-            logger.warning("No data scraped; exiting.")
+            logger.warning("No tweets scraped.")
             return
 
-        # Initialize the graph indexer
+        # Insert into Neo4j
+        logger.info("Inserting scraped tweets into Neo4j.")
         graph_indexer = ScraperGraphIndexer()
-
-        # Insert scraped data into the Neo4j database
-        logger.info("Inserting scraped data into the Neo4j database.")
         graph_indexer.create_nodes_and_edges(scraped_data)
 
     except Exception as e:
-        logger.error(f"An error occurred: {e}")
+        logger.error(f"Error during indexing: {e}")
 
     finally:
-        # Ensure Neo4j driver connection is closed if graph_indexer was created
         if graph_indexer:
             graph_indexer.close()
 
