@@ -21,14 +21,14 @@ Make sure you have `pm2` installed from the miner [documentation](https://github
 Clone this repository:
 ```bash
 git clone https://github.com/blockchain-insights/crypto-influence-insights-indexer.git
-cd crypto-influence-insights-indexer
 ```
 
 #### Environment Configuration
 
-- Navigate to ```crypto-influence-insights-indexer/ops``` and copy the example ```.env``` file:
+- Navigate to ```crypto-influence-insights-indexer``` and copy the example ```.env``` file:
 ```bash
-cp .env.example .env
+cd crypto-influence-insights-indexer
+cp .env.example ./ops/.env
 ```
  
 - Edit the .env file to set appropriate configurations. At a minimum, set the following:
