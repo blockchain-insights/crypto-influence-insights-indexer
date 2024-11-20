@@ -1,4 +1,4 @@
-# Twitter PEPE Indexer
+# Influence Insights Indexer
 
 ### Hardware Requirements
 - **Neo4j**: 2 CPU cores, 8 GB RAM, ~100 GB+ SSD storage
