@@ -31,7 +31,7 @@ services:
       - GRAPH_DB_PASSWORD=KGdkfCHtVumyMN
       - SCRAPE_START_DATE=2024-07-01
       - MAX_ITEMS=1200
-      - SCRAPE_TOKEN=PEPE
+      - SCRAPE_TOKEN=TAO
       - REDIS_URL=redis://redis:6379/0
       - INDEXER_INTERVAL_HOURS=24
       - TRIGGER_IMMEDIATE=true
