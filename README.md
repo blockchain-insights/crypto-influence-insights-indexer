@@ -38,7 +38,7 @@ cp .env.example ./ops/.env
     GRAPH_DB_PASSWORD={put-here-your-password}
     REDIS_URL=redis://localhost:6379/0
     SCRAPE_TOKEN=PEPE
-    INDEXER_INTERVAL_MINUTES=10
+    INDEXER_INTERVAL_HOURS=24
     TRIGGER_IMMEDIATE=true
 ```
 ### Running Components

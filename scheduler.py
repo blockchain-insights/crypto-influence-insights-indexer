@@ -19,8 +19,8 @@ logger.add(
     level="DEBUG"
 )
 
-# Get the schedule interval from an environment variable or default to 7 minutes
-INDEXER_INTERVAL_MINUTES = int(os.getenv('INDEXER_INTERVAL_MINUTES', 7))
+# Get the schedule interval from an environment variable or default to 1 hour
+INDEXER_INTERVAL_HOURS = int(os.getenv('INDEXER_INTERVAL_HOURS', 24))
 
 # Celery application instance
 scheduler_app = Celery('tasks', broker=os.getenv('REDIS_URL', 'redis://localhost:6379/0'))
@@ -30,9 +30,9 @@ from twitter_token_indexer import run_index_tweets
 
 # Beat schedule for periodic tasks
 scheduler_app.conf.beat_schedule = {
-    'run-indexer-every-x-minutes': {
+    'run-indexer-every-x-hours': {
         'task': 'twitter_token_indexer.run_index_tweets',
-        'schedule': crontab(minute=f'*/{INDEXER_INTERVAL_MINUTES}'),
+        'schedule': crontab(hour=f'*/{INDEXER_INTERVAL_HOURS}'),
         'options': {'immediate': True},
     },
 }
