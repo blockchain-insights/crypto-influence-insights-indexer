@@ -72,7 +72,8 @@ class ApiDojoTweetScraper:
             images = []
             extended_entities = item.get("extendedEntities")
             if extended_entities:
-                media_urls = {m["media_key"]: m["media_url_https"] for m in extended_entities["media"] if m.get("media_url_https")}
+                media_urls = {m["media_key"]: m["media_url_https"] for m in extended_entities["media"] if
+                              m.get("media_url_https")}
                 for media in item.get("entities", {}).get('media', []):
                     media_key = media.get("media_key")
                     if media_key:
@@ -96,7 +97,8 @@ class ApiDojoTweetScraper:
                 'is_verified': item['author']['isVerified'],
                 'follower_count': item['author'].get('followers', 0),
                 'account_age': self.format_date(item['author'].get('createdAt', "")),
-                'engagement_level': item.get('likeCount', 0) + item.get('retweetCount', 0)
+                'engagement_level': item.get('likeCount', 0) + item.get('retweetCount', 0),
+                'total_tweets': item['author'].get('statusesCount', 0)  # Add the number of tweets the user has posted
             }
 
             region = {
@@ -105,8 +107,10 @@ class ApiDojoTweetScraper:
 
             # Define edges and relationships between entities
             edges = [
-                {'type': 'POSTED', 'from': user_account['user_id'], 'to': tweet['id'], 'attributes': {'timestamp': tweet['timestamp'], 'likes': tweet['likes']}},
-                {'type': 'MENTIONS', 'from': user_account['user_id'], 'to': self.token, 'attributes': {'timestamp': tweet['timestamp'], 'hashtag_count': len(hashtags)}},
+                {'type': 'POSTED', 'from': user_account['user_id'], 'to': tweet['id'],
+                 'attributes': {'timestamp': tweet['timestamp'], 'likes': tweet['likes']}},
+                {'type': 'MENTIONS', 'from': user_account['user_id'], 'to': self.token,
+                 'attributes': {'timestamp': tweet['timestamp'], 'hashtag_count': len(hashtags)}},
                 {'type': 'LOCATED_IN', 'from': user_account['user_id'], 'to': region['name']},
                 {'type': 'MENTIONED_IN', 'from': self.token, 'to': tweet['id']}
             ]

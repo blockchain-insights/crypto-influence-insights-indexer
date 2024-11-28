@@ -31,7 +31,7 @@ async def index_tweets(token=None):
         # Insert into Neo4j
         logger.info("Inserting scraped tweets into Neo4j.")
         graph_indexer = ScraperGraphIndexer()
-        graph_indexer.create_nodes_and_edges(scraped_data)
+        graph_indexer.create_nodes_and_edges(scraped_data, token)
 
     except Exception as e:
         logger.error(f"Error during indexing: {e}")
