@@ -9,12 +9,15 @@ services:
       - "7687:7687"
     environment:
       - NEO4J_AUTH=${GRAPH_DB_USER:-neo4j}/${GRAPH_DB_PASSWORD:-KGdkfCHtVumyMN}
-      - NEO4JLABS_PLUGINS=["graph-data-science"]
-      - NEO4J_dbms_security_procedures_unrestricted=gds.*
+      - NEO4JLABS_PLUGINS=["apoc", "graph-data-science"]
+      - NEO4J_dbms_security_procedures_unrestricted=apoc.*,gds.*
+      - NEO4J_dbms_memory_pagecache_size=2G
+      - NEO4J_dbms_memory_heap_initial__size=2G
+      - NEO4J_dbms_memory_heap_max__size=4G
     volumes:
       - neo4j-data:/data
       - neo4j-logs:/logs
-      - ./ops/neo4j/plugins:/plugins  # Mount the directory with the GDS JAR
+      - ./ops/neo4j/plugins:/plugins  # Mount the directory with the required plugins
     restart: unless-stopped
 
   neo4j-test:
@@ -24,11 +27,11 @@ services:
       - "7688:7687"
     environment:
       - NEO4J_AUTH=${GRAPH_DB_USER:-neo4j}/${GRAPH_DB_PASSWORD:-KGdkfCHtVumyMN}
+      - NEO4JLABS_PLUGINS=["graph-data-science"]
     volumes:
       - neo4j-test-data:/data
       - neo4j-test-logs:/logs
     restart: unless-stopped
-
 
   scheduler:
     build:
