@@ -17,6 +17,19 @@ services:
       - ./ops/neo4j/plugins:/plugins  # Mount the directory with the GDS JAR
     restart: unless-stopped
 
+  neo4j-test:
+    image: neo4j:latest
+    ports:
+      - "7475:7474"
+      - "7688:7687"
+    environment:
+      - NEO4J_AUTH=${GRAPH_DB_USER:-neo4j}/${GRAPH_DB_PASSWORD:-KGdkfCHtVumyMN}
+    volumes:
+      - neo4j-test-data:/data
+      - neo4j-test-logs:/logs
+    restart: unless-stopped
+
+
   scheduler:
     build:
       context: ../
@@ -61,3 +74,7 @@ volumes:
     name: neo4j-data
   neo4j-logs:
     name: neo4j-logs
+  neo4j-test-data:
+    name: neo4j-test-data
+  neo4j-test-logs:
+    name: neo4j-test-logs
