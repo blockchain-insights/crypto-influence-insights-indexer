@@ -34,12 +34,17 @@ cp .env.example ./ops/.env
 - Edit the .env file to set appropriate configurations. At a minimum, set the following:
 
 ```
+    APIFY_API_KEY="apify_api_eZrqixGZNbC3k4h9xlKTMsym7eCqHZ0F6rN5"
+    GRAPH_DB_URL=bolt://localhost:7687
     GRAPH_DB_USER={put-here-your-username}
     GRAPH_DB_PASSWORD={put-here-your-password}
+    SCRAPE_START_DATE={put-here-your-scrape-start-date, YYYY-MM-DD}
+    MAX_ITEMS={max-items,e.g. 1200}
+    SCRAPE_TOKEN={scrape_token, e.g. 'PEPE'}
     REDIS_URL=redis://localhost:6379/0
-    SCRAPE_TOKEN=PEPE
     INDEXER_INTERVAL_HOURS=24
-    TRIGGER_IMMEDIATE=true
+    TRIGGER_IMMEDIATE={put-here-whether-to-trigger-indexer-immediately,true/false}
+
 ```
 ### Running Components
 
