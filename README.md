@@ -34,7 +34,7 @@ cp .env.example ./ops/.env
 - Edit the .env file to set appropriate configurations. At a minimum, set the following:
 
 ```
-    APIFY_API_KEY="apify_api_eZrqixGZNbC3k4h9xlKTMsym7eCqHZ0F6rN5"
+    APIFY_API_KEY={put-your-apify-key-here}
     GRAPH_DB_URL=bolt://localhost:7687
     GRAPH_DB_USER={put-here-your-username}
     GRAPH_DB_PASSWORD={put-here-your-password}
