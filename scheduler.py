@@ -1,12 +1,8 @@
-import os
 from celery import Celery
 from celery.schedules import crontab
-from dotenv import load_dotenv
 from loguru import logger
+from settings import settings  # Import the Settings class
 import sys
-
-# Load environment variables
-load_dotenv()
 
 # Configure logging
 logger.remove()
@@ -21,8 +17,8 @@ logger.add(
     level="DEBUG"
 )
 
-# Load schedule interval from the environment
-INDEXER_INTERVAL_HOURS = int(os.getenv('INDEXER_INTERVAL_HOURS', 24))
+# Load schedule interval from settings
+INDEXER_INTERVAL_HOURS = settings.INDEXER_INTERVAL_HOURS
 
 # Ensure interval is valid
 if INDEXER_INTERVAL_HOURS <= 0 or INDEXER_INTERVAL_HOURS > 24:
@@ -32,7 +28,7 @@ if INDEXER_INTERVAL_HOURS <= 0 or INDEXER_INTERVAL_HOURS > 24:
 # Celery application instance
 scheduler_app = Celery(
     'tasks',
-    broker=os.getenv('REDIS_URL', 'redis://localhost:6379/0')
+    broker=settings.REDIS_URL
 )
 
 # Import tasks to register them with Celery
@@ -52,7 +48,7 @@ scheduler_app.conf.broker_connection_retry_on_startup = True
 scheduler_app.conf.worker_proc_alive_timeout = 60
 
 # Trigger immediate execution if the environment variable is set
-if os.getenv('TRIGGER_IMMEDIATE', 'false').lower() == 'true':
+if settings.TRIGGER_IMMEDIATE:
     logger.info("Triggering immediate execution of `run_index_tweets` task.")
     try:
         scheduler_app.send_task('twitter_token_indexer.run_index_tweets')
