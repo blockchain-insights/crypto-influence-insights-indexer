@@ -13,6 +13,9 @@ class Settings(BaseSettings):
     SCRAPE_TOKEN: str
     INDEXER_INTERVAL_HOURS: int
     TRIGGER_IMMEDIATE: bool
+    PINATA_API_KEY: str
+    PINATA_SECRET_API_KEY: str
+    MINER_KEY: str
 
     POSTGRES_USER: str
     POSTGRES_PASSWORD: str

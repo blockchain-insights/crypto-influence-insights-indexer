@@ -3,6 +3,8 @@ from datetime import datetime
 from celery import shared_task
 from apify.apidojo_tweet_scraper import ApiDojoTweetScraper
 from loguru import logger
+
+from database.session_manager import DatabaseSessionManager
 from helpers.ipfs_utils import upload_file_to_ipfs
 from database.models.dataset_links import DatasetLinkManager
 from settings import settings
@@ -13,7 +15,7 @@ def run_index_tweets():
     asyncio.run(index_tweets())
 
 
-async def index_tweets(token=None, miner_key=None):
+async def index_tweets(token=None):
     """
     Scrape tweets for a given token, upload results to IPFS, and store the link in the database.
 
@@ -22,7 +24,7 @@ async def index_tweets(token=None, miner_key=None):
         miner_key (str): Miner key to include in the file name.
     """
     token = token or settings.SCRAPE_TOKEN
-    miner_key = miner_key or "default_miner"  # This can also be part of settings if needed
+    miner_key = settings.MINER_KEY  # This can also be part of settings if needed
     scrape_start_date = settings.SCRAPE_START_DATE
     scrape_end_date = datetime.utcnow().strftime("%Y-%m-%d")
 
@@ -61,8 +63,10 @@ async def index_tweets(token=None, miner_key=None):
         ipfs_link = ipfs_response.get("ipfs_link")
         logger.info(f"Uploaded to IPFS: {ipfs_link}")
 
+        session_manager = DatabaseSessionManager()
+        session_manager.init(settings.DATABASE_URL)
         # Store IPFS link in the database
-        dataset_manager = DatasetLinkManager()
+        dataset_manager = DatasetLinkManager(session_manager)
         await dataset_manager.store_latest_link(token=token, ipfs_link=ipfs_link)
         logger.info(f"Stored IPFS link for token {token} in the database.")
 
@@ -74,9 +78,8 @@ async def main():
     """
     Main function to initialize and run the tweet indexing.
     """
-    token = settings.SCRAPE_TOKEN  # Default token from settings
-    miner_key = "default_miner"  # Can also be configured in settings
-    await index_tweets(token, miner_key)
+    token = settings.SCRAPE_TOKEN
+    await index_tweets(token)
 
 
 if __name__ == "__main__":
