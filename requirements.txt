@@ -4,3 +4,7 @@ python-dotenv
 neo4j
 celery
 redis
+sqlalchemy
+alembic
+pydantic-settings
+asyncpg

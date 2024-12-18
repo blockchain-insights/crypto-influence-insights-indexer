@@ -1,46 +1,28 @@
 version: '3.8'
 
 services:
-
-  neo4j:
-    image: neo4j:latest
+  ipfs-postgres:
+    container_name: ipfs-postgres
+    image: postgres:16.3-alpine3.20
     ports:
-      - "7474:7474"
-      - "7687:7687"
-    environment:
-      - NEO4J_AUTH=${GRAPH_DB_USER:-neo4j}/${GRAPH_DB_PASSWORD:-KGdkfCHtVumyMN}
-      - NEO4JLABS_PLUGINS=["apoc", "graph-data-science"]
-      - NEO4J_dbms_security_procedures_unrestricted=apoc.*,gds.*
-      - NEO4J_dbms_memory_pagecache_size=2G
-      - NEO4J_dbms_memory_heap_initial__size=2G
-      - NEO4J_dbms_memory_heap_max__size=4G
+      - "5430:5432"
     volumes:
-      - neo4j-data:/data
-      - neo4j-logs:/logs
-      - ./ops/neo4j/plugins:/plugins  # Mount the directory with the required plugins
+      - "ipfs-postgres-data:/var/lib/postgresql/data"
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-indexer_db}
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-changeit456$}
     restart: unless-stopped
 
-  neo4j-test:
-    image: neo4j:latest
-    ports:
-      - "7475:7474"
-      - "7688:7687"
-    environment:
-      - NEO4J_AUTH=${GRAPH_DB_USER:-neo4j}/${GRAPH_DB_PASSWORD:-KGdkfCHtVumyMN}
-      - NEO4JLABS_PLUGINS=["graph-data-science"]
-    volumes:
-      - neo4j-test-data:/data
-      - neo4j-test-logs:/logs
-    restart: unless-stopped
-
-  scheduler:
+  ipfs-scheduler:
+    container_name: ipfs-scheduler
     build:
       context: ../
       dockerfile: Dockerfile
     command: ["celery", "-A", "scheduler", "worker", "--beat", "-E", "--loglevel=info", "--concurrency=1"]
     depends_on:
       - redis
-      - neo4j
+      - ipfs-postgres
     environment:
       - APIFY_API_KEY=apify_api_eZrqixGZNbC3k4h9xlKTMsym7eCqHZ0F6rN5
       - GRAPH_DB_URL=bolt://neo4j:7687
@@ -56,28 +38,23 @@ services:
     volumes:
       - ./logs:/logs
 
-  scheduler-ui:
+  ipfs-scheduler-ui:
+    container_name: ipfs-scheduler-ui
     image: mher/flower:latest
     ports:
       - "5555:5555"
     command: ["celery", "flower", "--broker=redis://redis:6379/0"]
     depends_on:
       - redis
-      - scheduler
+      - ipfs-scheduler
     restart: unless-stopped
 
   redis:
+    container_name: ipfs-redis
     image: redis:alpine
     ports:
       - "6379:6379"
     restart: unless-stopped
 
 volumes:
-  neo4j-data:
-    name: neo4j-data
-  neo4j-logs:
-    name: neo4j-logs
-  neo4j-test-data:
-    name: neo4j-test-data
-  neo4j-test-logs:
-    name: neo4j-test-logs
+  ipfs-postgres-data:
