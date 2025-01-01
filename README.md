@@ -34,16 +34,22 @@ cp .env.example ./ops/.env
 - Edit the .env file to set appropriate configurations. At a minimum, set the following:
 
 ```
-    APIFY_API_KEY={put-your-apify-key-here}
-    GRAPH_DB_URL=bolt://localhost:7687
-    GRAPH_DB_USER={put-here-your-username}
-    GRAPH_DB_PASSWORD={put-here-your-password}
-    SCRAPE_START_DATE={put-here-your-scrape-start-date, YYYY-MM-DD}
-    MAX_ITEMS={max-items,e.g. 1200}
-    SCRAPE_TOKEN={scrape_token, e.g. 'PEPE'}
+    APIFY_API_KEY={put-your-apify-key-value-here}
+    POSTGRES_DB=indexer_db
+    POSTGRES_USER=postgres
+    POSTGRES_PASSWORD={your-password}
+    POSTGRES_HOST=localhost
+    POSTGRES_PORT=5432
+    DATABASE_URL=postgresql+asyncpg://postgres:{your-password}$@localhost:5432/indexer_db
+    SCRAPE_START_DATE="2024-07-01"
+    MAX_ITEMS=1200
+    SCRAPE_TOKEN=PEPE
     REDIS_URL=redis://localhost:6379/0
     INDEXER_INTERVAL_HOURS=24
-    TRIGGER_IMMEDIATE={put-here-whether-to-trigger-indexer-immediately,true/false}
+    TRIGGER_IMMEDIATE=true
+    PINATA_API_KEY={your-pinata-api-key}
+    PINATA_SECRET_API_KEY={your-pinata-secret-api-key}
+    MINER_KEY={your-miner-key-address}
 
 ```
 ### Running Components
@@ -51,7 +57,7 @@ cp .env.example ./ops/.env
 #### Running all components via docker compose
 
 The system includes:
-- Neo4j (Graph Database)
+- Postgres (For storing links to IPFS JSON datasets with scraped data)
 - Scheduler (Celery-based Indexer)
 - Redis (Message Queue)
 - Scheduler UI (Flower)
@@ -62,7 +68,7 @@ To start all required components, navigate to the ops directory and run:
 docker compose up -d
 ```
   
-This will start Neo4j, the scheduler, Redis, and the Flower UI.
+This will start Postgres, the scheduler, Redis, and the Flower UI.
 
 #### Running the Indexer Manually 
 
@@ -72,7 +78,7 @@ The indexer is managed using Celery and automatically runs on the configured sch
 cd src
 celery -A scheduler worker --beat -E --loglevel=info
 ```
-This will start the Twitter PEPE indexing process. The scheduler scrapes Twitter data for the PEPE token and updates the Neo4j database with relevant information about tweets, user accounts, and regions.
+This will start the Twitter PEPE indexing process. The scheduler scrapes Twitter data for the PEPE token and updates the Postgres database with an IPFS link to the JSON dataset with scraped data.
 
 ### Monitoring
 
