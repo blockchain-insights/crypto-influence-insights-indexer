@@ -24,16 +24,22 @@ services:
       - redis
       - ipfs-postgres
     environment:
-      - APIFY_API_KEY=apify_api_eZrqixGZNbC3k4h9xlKTMsym7eCqHZ0F6rN5
-      - GRAPH_DB_URL=bolt://neo4j:7687
-      - GRAPH_DB_USER=neo4j
-      - GRAPH_DB_PASSWORD=KGdkfCHtVumyMN
-      - SCRAPE_START_DATE=2024-07-01
-      - MAX_ITEMS=1200
-      - SCRAPE_TOKEN=TAO
-      - REDIS_URL=redis://redis:6379/0
-      - INDEXER_INTERVAL_HOURS=24
-      - TRIGGER_IMMEDIATE=true
+      - APIFY_API_KEY=${APIFY_API_KEY}
+      - POSTGRES_DB=${POSTGRES_DB:-indexer_db}
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-changeit456$}
+      - POSTGRES_HOST=${POSTGRES_HOST:-localhost}
+      - POSTGRES_PORT=${POSTGRES_PORT:-5430}
+      - DATABASE_URL=${DATABASE_URL:-postgresql+asyncpg://postgres:changeit456$@localhost:5430/indexer_db}
+      - SCRAPE_START_DATE=${SCRAPE_START_DATE:-2024-07-01}
+      - MAX_ITEMS=${MAX_ITEMS:-1200}
+      - SCRAPE_TOKEN=${SCRAPE_TOKEN:-TAO}
+      - REDIS_URL=${REDIS_URL:-redis://localhost:6379/0}
+      - INDEXER_INTERVAL_HOURS=${INDEXER_INTERVAL_HOURS:-24}
+      - TRIGGER_IMMEDIATE=${TRIGGER_IMMEDIATE:-true}
+      - PINATA_API_KEY=${PINATA_API_KEY}
+      - PINATA_SECRET_API_KEY=${PINATA_SECRET_API_KEY}
+      - MINER_KEY=${MINER_KEY}
     restart: unless-stopped
     volumes:
       - ./logs:/logs
