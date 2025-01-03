@@ -19,7 +19,8 @@ services:
     build:
       context: ../
       dockerfile: Dockerfile
-    command: ["celery", "-A", "scheduler", "worker", "--beat", "-E", "--loglevel=info", "--concurrency=1"]
+    command: >
+      bash -c "alembic upgrade head && celery -A scheduler worker --beat -E --loglevel=info --concurrency=1"
     depends_on:
       - redis
       - ipfs-postgres
