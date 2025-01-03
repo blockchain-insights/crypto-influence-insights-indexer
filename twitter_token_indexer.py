@@ -6,6 +6,7 @@ from loguru import logger
 
 from database.session_manager import DatabaseSessionManager
 from helpers.ipfs_utils import upload_file_to_ipfs
+from helpers.json_validation_helpers import validate_json_dataset  # Import the validation function
 from database.models.dataset_links import DatasetLinkManager
 from settings import settings
 
@@ -17,11 +18,10 @@ def run_index_tweets():
 
 async def index_tweets(token=None):
     """
-    Scrape tweets for a given token, upload results to IPFS, and store the link in the database.
+    Scrape tweets for a given token, upload results to IPFS, validate JSON, and store the link in the database.
 
     Args:
         token (str): Token to scrape tweets for.
-        miner_key (str): Miner key to include in the file name.
     """
     token = token or settings.SCRAPE_TOKEN
     miner_key = settings.MINER_KEY  # This can also be part of settings if needed
@@ -46,9 +46,18 @@ async def index_tweets(token=None):
         tweet_scraper.export_to_json(scraped_data, file_name)
         logger.info(f"Exported tweets to {file_name}")
 
-        # Upload JSON file to IPFS
+        # Validate the exported JSON
+        schema_path = "./schemas/dataset_schema.json"  # Update with the actual schema path
         with open(file_name, "r") as file:
             file_content = file.read()
+
+        is_valid = validate_json_dataset(file_content, schema_path)
+        if not is_valid:
+            logger.error(f"Validation failed for file: {file_name}")
+            return
+        logger.info(f"JSON file validated successfully: {file_name}")
+
+        # Upload JSON file to IPFS
         ipfs_response = upload_file_to_ipfs(
             file_name,
             file_content,
